@@ -1,2 +1,2 @@
-#TargetFrameworkVersion=v4.0:PlatformToolSet=v141:EnableManagedIncrementalBuild=false:VCToolArchitecture=Native32Bit:WindowsTargetPlatformVersion=10.0.17763.0
-Debug|x64|D:\InnoGitHub\GitHub\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\|
+PlatformToolSet=v143:VCToolArchitecture=Native64Bit:VCToolsVersion=14.33.31629:TargetPlatformVersion=10.0.19041.0:
+Debug|x64|C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\|
