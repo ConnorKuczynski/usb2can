@@ -5,4 +5,6 @@ C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\Lib\x6
 C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\Lib\x64\libusb.h(765,47): message : This member will be ignored by a defaulted constructor or copy/move assignment operator
 C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\Lib\x64\libusb.h(1258,38): warning C4200: nonstandard extension used: zero-sized array in struct/union
 C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\Lib\x64\libusb.h(1258,38): message : This member will be ignored by a defaulted constructor or copy/move assignment operator
+C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\thrustConfig.cpp(106,22): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\thrustConfig.cpp(141,119): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
   InnoMakerUsb2Can.vcxproj -> C:\Users\Connor\source\repos\usb2can\For Windows\InnoMakerUsb2Can-v.1.2.3\x64\Debug\InnoMakerUsb2Can.exe

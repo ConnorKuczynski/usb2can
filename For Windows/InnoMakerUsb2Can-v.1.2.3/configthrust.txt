@@ -1,0 +1,2 @@
+linear 10 60 2000
+constant 5 1000

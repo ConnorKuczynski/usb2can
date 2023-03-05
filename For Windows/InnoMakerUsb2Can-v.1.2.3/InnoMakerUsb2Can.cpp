@@ -4,104 +4,49 @@
 #include <iostream>
 #include "InnoMakerUsb2CanLib.h"
 #include <thread>
+#include <windows.h>
+#include "parser.cpp"
 
 InnoMakerUsb2CanLib::innomaker_can *can;
-BOOL exitRecvThread = false;
+string config_file_path = "./configthrust.txt";
 
-int bytesToInt(byte* bytes, int size = 4)
-{
-	int a = bytes[0] & 0xFF;
-	a |= ((bytes[1] << 8) & 0xFF00);
-	a |= ((bytes[2] << 16) & 0xFF0000);
-	a |= ((bytes[3] << 24) & 0xFF000000);
-	return a;
+
+std::wstring ExePath() {
+	TCHAR buffer[MAX_PATH] = { 0 };
+	GetModuleFileName(NULL, buffer, MAX_PATH);
+	std::wstring::size_type pos = std::wstring(buffer).find_last_of(L"\\/");
+	return std::wstring(buffer).substr(0, pos);
 }
 
-void sendTask(InnoMakerUsb2CanLib *usbCanLib, InnoMakerUsb2CanLib::InnoMakerDevice *firstDevice) {
-	/// Test Send 
-	int counter = 10000;
-	while (counter-- > 0) {
-		InnoMakerUsb2CanLib::innomaker_host_frame frame;
-		frame.data[0] = 0;
-		frame.data[1] = 0;
-		frame.data[2] = 0;
-		frame.data[3] = 0;
-		frame.data[4] = 0;
-		frame.data[5] = 0;
-		frame.data[6] = 0;
-		frame.data[7] = 0;
-		frame.can_id = 0;
-
-		frame.can_dlc = 8;
-		frame.channel = 0;
-		frame.flags = 0;
-		frame.reserved = 0;
 
 
-		// Find an empty context to keep track of transmission 
-		InnoMakerUsb2CanLib::innomaker_tx_context *txc = usbCanLib->innomaker_alloc_tx_context(can);
-		if (txc->echo_id == 0xff)
-		{
-			printf("SEND FAIL: NETDEV_BUSY \n");
-			Sleep(1000);
-			continue;
+void handleKeyboardInput(std::atomic<BOOL>* sharedStart, std::atomic<BOOL>* sharedStop, std::atomic<BOOL>* paused, std::atomic<BOOL>* finish_event) {
+	while(!*finish_event) {
+		if (*paused || *sharedStart) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
-
-		frame.echo_id = txc->echo_id;
-
-		BYTE sendBuffer[sizeof(InnoMakerUsb2CanLib::innomaker_host_frame)];
-		memcpy(sendBuffer, &frame, sizeof(InnoMakerUsb2CanLib::innomaker_host_frame));
-		bool result = usbCanLib->sendInnoMakerDeviceBuf(firstDevice, sendBuffer, sizeof(InnoMakerUsb2CanLib::innomaker_host_frame), 10);
-		if (result) {
-			printf("Send a frame \n");
+		else if (GetKeyState(VK_ESCAPE) & 0x8000) {
+			*finish_event = true;
 		}
-		else {
-			/// If send fail,free the context by echo id 
-			InnoMakerUsb2CanLib::innomaker_tx_context *txc1 = usbCanLib->innomaker_get_tx_context(can, txc->echo_id);
-			if (txc1 != NULL)
-			{
-				usbCanLib->innomaker_free_tx_context(txc1);
-			}
+		else if (GetKeyState('P') & 0x8000) {
+			*paused = true;
+			//cout << "P received, paused \n";
 		}
-		Sleep(1000);
-	}
-
-}
-
-void recvTask(InnoMakerUsb2CanLib *usbCanLib, InnoMakerUsb2CanLib::InnoMakerDevice *firstDevice) {
-	while (1) {
-		if (exitRecvThread) break;
-		BYTE recvBuffer[sizeof(InnoMakerUsb2CanLib::innomaker_host_frame)];
-		memset(recvBuffer, 0, sizeof(InnoMakerUsb2CanLib::innomaker_host_frame));
-		bool result = usbCanLib->recvInnoMakerDeviceBuf(firstDevice, recvBuffer, sizeof(InnoMakerUsb2CanLib::innomaker_host_frame), 10);
-		if (result) {
-			int echoId = bytesToInt(recvBuffer);
-			if (echoId != 0xffffffff)
-			{
-				printf("Recv a echo frame \n");
-
-				/// Find the context that transfer before by echoid 
-				InnoMakerUsb2CanLib::innomaker_tx_context *txc = usbCanLib->innomaker_get_tx_context(can, echoId);
-				///bad devices send bad echo_ids.
-				if (txc == NULL)
-				{
-					printf("RECV FAIL:Bad Devices Send Bad Echo_ids");
-					continue;
-				}
-				/// Free context
-				usbCanLib->innomaker_free_tx_context(txc);
-			}
-			else {
-				printf("Recv a frame \n");
-			}
+		else if (GetKeyState('S') & 0x8000) {
+			//cout << "S received, start \n";
+			*sharedStart = true;
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(10)); //run receive procedure every 1 milliseconds
 	}
 }
+
+
 
 int main()
 {
+	std::wcout << "my directory is " << ExePath() << "\n";
 	/// Setup
-	InnoMakerUsb2CanLib *usbCanLib = new InnoMakerUsb2CanLib();
+	InnoMakerUsb2CanLib* usbCanLib = new InnoMakerUsb2CanLib();
 	usbCanLib->setup();
 
 	/// Scan devices
@@ -109,10 +54,13 @@ int main()
 	int deviceNums = usbCanLib->getInnoMakerDeviceCount();
 	printf("Find Device Count = %d \n", deviceNums);
 
-	if (deviceNums <= 0) return 0;
-
+	
+	if (!NO_DEVICE) {
+		if (deviceNums <= 0) return 0;
+	}
+	
 	/// Get first devices
-	InnoMakerUsb2CanLib::InnoMakerDevice *firstDevice = usbCanLib->getInnoMakerDevice(0);
+	InnoMakerUsb2CanLib::InnoMakerDevice* firstDevice = usbCanLib->getInnoMakerDevice(0);
 
 	/// Set usb can mode
 	InnoMakerUsb2CanLib::UsbCanMode usbCanMode = InnoMakerUsb2CanLib::UsbCanMode::UsbCanModeLoopback;
@@ -124,38 +72,55 @@ int main()
 	bittming.phase_seg2 = 2;
 	bittming.sjw = 1;
 	bittming.brp = 150;
-
-
-	//usbCanLib->openInnoMakerDevice(firstDevice);
-	//usbCanLib->urbResetDevice(firstDevice);
-	//usbCanLib->closeInnoMakerDevice(firstDevice);
-	int result = usbCanLib->urbSetupDevice(firstDevice, usbCanMode, bittming);
-	if (!result) {
-		printf("setup fail");
-		return 0;
+	
+	if (!NO_DEVICE) {
+		usbCanLib->openInnoMakerDevice(firstDevice);
+		usbCanLib->urbResetDevice(firstDevice);
+		usbCanLib->closeInnoMakerDevice(firstDevice);
+	}
+	if (!NO_DEVICE) {
+		int result = usbCanLib->urbSetupDevice(firstDevice, usbCanMode, bittming);
+		if (!result) {
+			printf("setup fail");
+			return 0;
+		}
 	}
 
-
 	can = new InnoMakerUsb2CanLib::innomaker_can();
-
 
 	/// Init tx context 
 	for (int i = 0; i < usbCanLib->innomaker_MAX_TX_URBS; i++)
 	{
 		can->tx_context[i].echo_id = usbCanLib->innomaker_MAX_TX_URBS;
 	}
+	
+	int can_id = 1;
+	
+	UsbConfig* config = new UsbConfig(can, usbCanLib, firstDevice, can_id);
 
-	exitRecvThread = false;
-	/// Start Send Thread
-	thread send_thread = std::thread(sendTask, usbCanLib, firstDevice);
-	/// Start Recv Thread
-	thread recv_thread = std::thread(recvTask, usbCanLib, firstDevice);
-	send_thread.join();
-	exitRecvThread = true;
-	recv_thread.join();
-	usbCanLib->urbResetDevice(firstDevice);
-	usbCanLib->closeInnoMakerDevice(firstDevice);
-	usbCanLib->setdown();
+	BYTE data[8];
+	std::vector<AbstractCommand*> commands = parse(config_file_path);
+	std::atomic<BOOL> sharedStop = false;
+	std::atomic<BOOL> sharedStart = false;
+	std::atomic<BOOL> finishEvent = false;
+	std::atomic<BOOL> paused = false;
+	CommandControl* control = new CommandControl(&sharedStop, &sharedStart, &finishEvent, &paused, data, &commands);
+	control->setUsbConfig(config);
+
+	
+	//thread recv_thread = std::thread(recvTask, usbCanLib, firstDevice, &sharedStart, &sharedStop, &finishEvent);
+	thread keyboard_event_thread = std::thread(handleKeyboardInput, &sharedStart, &sharedStop, &paused, &finishEvent);
+	control->execute();
+	
+	
+	//recv_thread.join();
+	keyboard_event_thread.join();
+	if (!NO_DEVICE) {
+		usbCanLib->urbResetDevice(firstDevice);
+		usbCanLib->closeInnoMakerDevice(firstDevice);
+		usbCanLib->setdown();
+	}
+	
 	return 0;
 }
 

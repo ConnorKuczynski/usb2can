@@ -31,6 +31,7 @@ public:
 		BYTE reserved;
 		BYTE data[8];
 		UINT32 timestamp_us;
+
 	};
 
 	struct Innomaker_device_bittming
